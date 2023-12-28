@@ -1,4 +1,4 @@
-from Project.models import User, NhanVien
+from Project.models import User
 from Project import app
 import hashlib
 
