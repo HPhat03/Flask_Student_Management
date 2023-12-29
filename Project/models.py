@@ -47,6 +47,7 @@ class User(BaseModel, UserMixin):
     birthdate = Column(String(10))
     username = Column(String(20), nullable= False, unique=True)
     password = Column(String(100), nullable=False)
+    image = Column(String(100))
 
     students = relationship("Student", backref="info", lazy=True)
     employees = relationship('Employee', backref="info", lazy= True)
@@ -55,13 +56,19 @@ class User(BaseModel, UserMixin):
     roles = relationship("UserRoles", backref="user_info", lazy=True)
     admins = relationship("Admin", backref="info", lazy=True)
     teachers = relationship("Teacher", backref="info", lazy=True)
-    changes = relationship("ChangedNotification", backref="employee_detail", lazy=True)
+    changes = relationship("ChangedNotification", backref="user_detail", lazy=True)
 
 class UserContact(BaseModel):
     user_id = Column(Integer, ForeignKey(User.id), nullable=False)
     contactType = Column(Enum(LoaiTTLL))
     contactData = Column(String(30))
-class Employee(BaseModel):
+
+class ActorBase(db.Model):
+    __abstract__ = True
+
+    started_date = Column(DateTime, default=datetime.now())
+    active = Column(Boolean, default=True)
+class Employee(ActorBase):
     user_id = Column(Integer, ForeignKey(User.id), primary_key=True, nullable= False, unique= True)
 
 
@@ -69,10 +76,10 @@ class UserRoles(BaseModel):
     user_id = Column(Integer, ForeignKey(User.id), nullable= False)
     role = Column(Enum(UserRole))
 
-class Admin(BaseModel):
+class Admin(ActorBase):
     user_id = Column(Integer, ForeignKey(User.id), primary_key=True,unique=True, nullable=False)
 
-class Teacher(BaseModel):
+class Teacher(ActorBase):
     user_id = Column(Integer, ForeignKey(User.id), primary_key=True, unique=True, nullable=False)
     vanBang = Column(Text)
 
@@ -92,11 +99,11 @@ class Class(BaseModel):
     amount = Column(Integer, default=0)
     grade = Column(Enum(Grade), nullable=False)
     semester_id = Column(String(3), ForeignKey(Semester.id), nullable=False)
-    teacher_id = Column(Integer, ForeignKey(Teacher.id))
+    teacher_id = Column(Integer, ForeignKey(Teacher.user_id))
 
     students = relationship("Students_Classes", backref="class_detail", lazy=True)
 
-class Student(BaseModel):
+class Student(ActorBase):
     user_id = Column(Integer, ForeignKey(User.id), primary_key=True, unique=True, nullable=False)
     grade = Column(Enum(Grade), nullable=False)
     semester_id = Column(String(3), ForeignKey(Semester.id), nullable=False)
@@ -107,7 +114,7 @@ class Student(BaseModel):
 class Students_Classes(db.Model):
     id = Column(Integer, primary_key=True, nullable=False)
     class_id = Column(Integer, ForeignKey(Class.id), nullable=False)
-    student_id = Column(Integer, ForeignKey(Student.id), nullable=False)
+    student_id = Column(Integer, ForeignKey(Student.user_id), nullable=False)
 
 class Subject(BaseModel):
     name = Column(String(20), nullable=False)
@@ -116,14 +123,14 @@ class Subject(BaseModel):
     teachers = relationship("Teachers_Subjects", backref="subject_detail", lazy=True)
     scores = relationship("Score", backref="subject_detail", lazy=True)
 class Teachers_Subjects(db.Model):
-    teacher_id = Column(Integer, ForeignKey(Teacher.id), primary_key=True, nullable=False)
+    teacher_id = Column(Integer, ForeignKey(Teacher.user_id), primary_key=True, nullable=False)
     subject_id = Column(Integer,ForeignKey(Subject.id), primary_key=True, nullable=False)
 
 class Score(BaseModel):
     subject_id = Column(Integer, ForeignKey(Subject.id), nullable=False)
-    student_id = Column(Integer, ForeignKey(Student.id), nullable=False)
+    student_id = Column(Integer, ForeignKey(Student.user_id), nullable=False)
     semester_id = Column(String(3), ForeignKey(Semester.id), nullable=False)
-    teacher_id = Column(Integer, ForeignKey(Teacher.id), nullable=False)
+    teacher_id = Column(Integer, ForeignKey(Teacher.user_id), nullable=False)
 
     details = relationship("ScoreDetails", backref="info", lazy=True)
 class ScoreDetails(BaseModel):
@@ -136,9 +143,9 @@ class Principle(BaseModel):
     data = Column(Float)
     description = Column(Text)
 
-class ChangedNotification(db.Model):
-    id = Column(Integer, primary_key=True, nullable=False)
+class ChangedNotification(BaseModel):
     user_id = Column(Integer, ForeignKey(User.id))
+    user_role = Column(Enum(UserRole), nullable=False)
     content = Column(Text)
 if __name__ == "__main__":
     from Project import  app
