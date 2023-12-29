@@ -48,23 +48,58 @@ def auth():
 @app.route("/nhanvien/")
 @login_required
 def nhan_vien():
-    return  ''''<h1>Hello nhan vien %s<h1>
-                <a href="/logout/">Đăng xuất</a>''' % current_user.name
+    message = "Xin chào nhân viên %s." % current_user.name
+    return  render_template("menu.html", msg = message)
 @app.route("/admin/")
 @login_required
 def admin():
-    return  ''''<h1>Hello admin %s<h1>
-                <a href="/logout/">Đăng xuất</a>''' % current_user.name
+    message = "Xin chào admin %s." % current_user.name
+    return render_template("menu.html", msg=message)
 @app.route("/giaovien/")
 @login_required
 def giao_vien():
-    return  ''''<h1>Hello giao vien %s<h1>
-                <a href="/logout/">Đăng xuất</a>''' % current_user.name
+    message = "Xin chào giáo viên %s." % current_user.name
+    return render_template("menu.html", msg=message)
 @app.route("/logout/")
 def logout():
     logout_user()
     return redirect(url_for("index"))
 
+@app.context_processor
+def common_things():
+    missions = []
+    role = session.get('role')
+    match role:
+        case 'NHANVIEN':
+            missions = [
+                {'name': 'Quản lý sinh viên',
+                 'link': '#'},
+                {'name': 'Quản lý lớp',
+                 'link': '#'},
+                {'name': 'Quy định chung',
+                 'link': '#'}
+            ]
+        case 'ADMIN':
+            missions = [
+                {'name': 'Quản lý môn học',
+                 'link': '#'},
+                {'name': 'Thống kê báo cáo',
+                 'link': '#'},
+                {'name': 'Quản lý quy định',
+                 'link': '#'}
+            ]
+        case 'GIAOVIEN':
+            missions = [
+                {'name': 'Lớp',
+                 'link': '#'},
+                {'name': 'Quản lý Điểm',
+                 'link': '#'},
+                {'name': 'Quy định chung',
+                 'link': '#'}
+            ]
+    return {
+        'missions': missions
+    }
 
 #API TESTING
 @app.route("/api/users", methods = ['GET'])

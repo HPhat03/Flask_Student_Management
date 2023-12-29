@@ -1,0 +1,21 @@
+{% extends 'layout/base.html' %}
+{% block title %}Trang chủ{% endblock %}
+{% block content %}
+    <div class="alert alert-success">
+      <strong>Success!</strong> {{msg}}
+    </div>
+    <div class="container">
+        <div class="row bg-secondary">
+            <div class="col-md-2 bg-info p-2">
+                <h4>FILTER</h4>
+                <div class="list-group">
+                    <a href= "" class="list-group-item">NHÂN VIÊN</a>
+                    <a class="list-group-item">ADMIN</a>
+                    <a class="list-group-item">GIÁO VIÊN</a>
+                </div>
+            </div>
+            <div class="col-md-10 bg-success p-2">
+                <h4>CHANGE NOTIFICATIONS</h4></div>
+        </div>
+    </div>
+{% endblock %}
