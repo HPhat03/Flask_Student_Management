@@ -122,5 +122,19 @@ def getuser():
 def testapi():
     return render_template('test.html')
 
+@app.route('/api/changed_notification', methods = ['GET'])
+def getChNo():
+    notifications = dao.load_changed_notification()
+    myNote = []
+    for n in notifications:
+        temp = {
+            'actor': n.user_detail.name,
+            'role': str(n.user_role),
+            'content': n.content,
+            'time': n.created_date
+        }
+        myNote.append(temp)
+    return jsonify(myNote)
+
 if __name__ == "__main__":
     app.run()

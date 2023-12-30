@@ -166,5 +166,9 @@ if __name__ == "__main__":
         nv2 = UserRoles(user_id= 2, role = UserRole.NHANVIEN)
         ad1 = UserRoles(user_id = 2, role = UserRole.ADMIN)
         gv1 = UserRoles(user_id = 3, role = UserRole.GIAOVIEN)
-        db.session.add_all([u1, u2, u3, nv1, nv2, ad1, gv1])
+
+        no1 = ChangedNotification(user_id = 1, user_role = UserRole.NHANVIEN, content = "thay đổi giao diện front end" )
+        no2 = ChangedNotification(user_id=1, user_role=UserRole.NHANVIEN, content="thay đổi models")
+        no3 = ChangedNotification(user_id=1, user_role=UserRole.NHANVIEN, content="thay đổi templates")
+        db.session.add_all([no1, no2, no3])
         db.session.commit()

@@ -11,12 +11,18 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.min.js" integrity="sha384-cVKIPhGWiC2Al4u+LWgxfKTRIcfu0JTxR+EQDz/bgldoEyl4H0zUF0QKbrJ0EcQF" crossorigin="anonymous"></script>
 <!--    icon-->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css">
+
 </head>
 <body>
     {% block header %}
         {% include 'layout/header.html' %}
     {% endblock %}
+    <div style="margin-top: 70px;">
     {% block content %}{% endblock %}
-    {% block footer %}{% endblock %}
+    </div>
+    {% block footer %}
+        {% include 'layout/footer.html' %}
+    {% endblock %}
+    {% block script %}{% endblock %}
 </body>
 </html>
