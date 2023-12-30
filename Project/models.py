@@ -170,5 +170,6 @@ if __name__ == "__main__":
         no1 = ChangedNotification(user_id = 1, user_role = UserRole.NHANVIEN, content = "thay đổi giao diện front end" )
         no2 = ChangedNotification(user_id=1, user_role=UserRole.NHANVIEN, content="thay đổi models")
         no3 = ChangedNotification(user_id=1, user_role=UserRole.NHANVIEN, content="thay đổi templates")
-        db.session.add_all([no1, no2, no3])
-        db.session.commit()
+        no4 = ChangedNotification(user_id=3, user_role=UserRole.GIAOVIEN, content="nhập điểm")
+        # db.session.add_all([no4])
+        # db.session.commit()

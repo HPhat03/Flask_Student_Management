@@ -48,8 +48,12 @@ def auth():
 @app.route("/nhanvien/")
 @login_required
 def nhan_vien():
+    filter = request.args.get("filter")
+    page = request.args.get("page")
+    page = page if page else 1
+    changed = dao.load_changed_notification(filter = filter, page=page)
     message = "Xin chào nhân viên %s." % current_user.name
-    return  render_template("menu.html", msg = message)
+    return  render_template("menu.html", msg = message, notifications = changed)
 @app.route("/admin/")
 @login_required
 def admin():
@@ -102,7 +106,7 @@ def common_things():
     }
 
 #API TESTING
-@app.route("/api/users", methods = ['GET'])
+@app.route("/api/users", methods = ['GET', 'POST'])
 def getuser():
     test = dao.load_user_all()
     list = []
@@ -122,8 +126,12 @@ def getuser():
 def testapi():
     return render_template('test.html')
 
-@app.route('/api/changed_notification', methods = ['GET'])
+@app.route('/api/changed_notification', methods = ['GET', 'POST'])
 def getChNo():
+    if request.method == 'POST':
+        data = request.json
+        print(data)
+
     notifications = dao.load_changed_notification()
     myNote = []
     for n in notifications:

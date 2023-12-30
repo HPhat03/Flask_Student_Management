@@ -11,27 +11,40 @@
             <div class="col-md-2 bg-info p-2">
                 <h4>FILTER</h4>
                 <div class="list-group">
-                    <a href="?filter=NHANVIEN" class="list-group-item">NHÂN VIÊN</a>
-                    <a href="?filter=ADMIN" class="list-group-item">ADMIN</a>
-                    <a href="?filter=GIAOVIEN" class="list-group-item">GIÁO VIÊN</a>
+                    <a href="/" class="list-group-item">TẤT CẢ</a>
+                    <a class="list-group-item" onclick="setPara('filter','NHANVIEN')">NHÂN VIÊN</a>
+                    <a class="list-group-item" onclick="setPara('filter','ADMIN')">ADMIN</a>
+                    <a class="list-group-item" onclick="setPara('filter','GIAOVIEN')">GIÁO VIÊN</a>
                 </div>
             </div>
-            <div class="col-md-10 bg-secondary p-2">
+            <div class="col-md-10 p-2">
                 <h4>CHANGE NOTIFICATIONS</h4>
                 <ul class="pagination">
-                  <li class="page-item"><a class="page-link" href="?page=1">1</a></li>
-                  <li class="page-item"><a class="page-link" href="?page=2">2</a></li>
-                  <li class="page-item"><a class="page-link" href="?page=3">3</a></li>
+                  <li class="page-item"><a class="page-link"  onclick="setPara('page',1)">1</a></li>
+                  <li class="page-item"><a class="page-link"  onclick="setPara('page',2)">2</a></li>
+                  <li class="page-item"><a class="page-link"  onclick="setPara('page',3)">3</a></li>
                 </ul>
                 <div id ="notification" style="height: 400px; background-color: grey">
-                    <div style="display:flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%">
+                    {% if notifications: %}
+                    <ul class = 'list-group'>
+                        {% for n in notifications: %}
+                            <li class="list-group-item" style="display: flex;justify-content: space-between; align-items: center">
+                                  <div style = "width:10%">{{n.user_role}}</div>
+                                  <div style = "width:50%"><span style = "font-weight: bold">{{n.user_detail.name}}</span> đã {{n.content}}</div>
+                                  <div>{{n.created_date}}</div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                        <div style='display:flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%'>
                         <h1>KHÔNG CÓ THAY THAY ĐỔI</h1>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 {% endblock %}
 {% block script %}
-    <script src="{{url_for('static', filename = 'menu.js')}}"></script>
-    {% endblock %}
+    <script src= "{{url_for('static', filename = 'menu.js')}}"></script>
+{% endblock %}
