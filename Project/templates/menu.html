@@ -12,24 +12,24 @@
                 <h4>FILTER</h4>
                 <div class="list-group">
                     <a href="/" class="list-group-item">TẤT CẢ</a>
-                    <a class="list-group-item" onclick="setPara('filter','NHANVIEN')">NHÂN VIÊN</a>
-                    <a class="list-group-item" onclick="setPara('filter','ADMIN')">ADMIN</a>
-                    <a class="list-group-item" onclick="setPara('filter','GIAOVIEN')">GIÁO VIÊN</a>
+                    <a class="list-group-item" href="?filter=NHANVIEN">NHÂN VIÊN</a>
+                    <a class="list-group-item" href="?filter=ADMIN">ADMIN</a>
+                    <a class="list-group-item" href="?filter=GIAOVIEN"">GIÁO VIÊN</a>
                 </div>
             </div>
             <div class="col-md-10 p-2">
                 <h4>CHANGE NOTIFICATIONS</h4>
                 <ul class="pagination">
-                  <li class="page-item"><a class="page-link"  onclick="setPara('page',1)">1</a></li>
-                  <li class="page-item"><a class="page-link"  onclick="setPara('page',2)">2</a></li>
-                  <li class="page-item"><a class="page-link"  onclick="setPara('page',3)">3</a></li>
+                    {% for t in range(tags['start'],tags['end']+1): %}
+                        <li class="page-item"><a class="page-link"  onclick="setPara('page',{{t}})">{{t}}</a></li>
+                    {% endfor %}
                 </ul>
                 <div id ="notification" style="height: 400px; background-color: grey">
                     {% if notifications: %}
                     <ul class = 'list-group'>
                         {% for n in notifications: %}
                             <li class="list-group-item" style="display: flex;justify-content: space-between; align-items: center">
-                                  <div style = "width:10%">{{n.user_role}}</div>
+                                  <div style = "width:20%">{{n.user_role.value.upper()}}</div>
                                   <div style = "width:50%"><span style = "font-weight: bold">{{n.user_detail.name}}</span> đã {{n.content}}</div>
                                   <div>{{n.created_date}}</div>
                             </li>
@@ -46,5 +46,5 @@
     </div>
 {% endblock %}
 {% block script %}
-    <script src= "{{url_for('static', filename = 'menu.js')}}"></script>
+    <script src= "{{url_for('static', filename = 'js/menu.js')}}"></script>
 {% endblock %}

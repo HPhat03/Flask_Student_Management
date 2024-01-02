@@ -25,6 +25,7 @@
 ////}
 function setPara(key,value){
     let url = window.location.href;
+    var list = url.split(/\?|&/);
     index = url.indexOf(key);
     if (index == -1){
         if (url.indexOf("?") > -1)
@@ -33,7 +34,6 @@ function setPara(key,value){
             url += `?${key}=${value}`;
         }
     else{
-        var list = url.split(/\?|&/);
         url = `${list[0]}\?`;
         for(i = 1; i<list.length; i++){
             if (list[i].indexOf(key) > -1)

@@ -1,36 +1,27 @@
 import enum
 
-from Project import app, db
+from Project import app, db, dao
 from sqlalchemy import Column, Integer,String,Boolean, ForeignKey, DateTime, Enum, Text, Float, Date
 from sqlalchemy.orm import relationship
 from flask_login import UserMixin
-from wtforms.fields import StringField, SubmitField, PasswordField, SelectField
-from flask_wtf import FlaskForm
-from wtforms.validators import InputRequired, Length, ValidationError
 from datetime import datetime
-#FORM
-class LoginForm(FlaskForm):
-    userType = SelectField("Đăng nhập theo: ", choices=[("NHANVIEN", "Nhân viên"), ("ADMIN", "Người quản trị"), ("GIAOVIEN", "Giáo viên")])
-    username = StringField(validators=[InputRequired(), Length(min=1, max=15)], render_kw={"placeholder": "Tên đăng nhập"})
-    password = PasswordField(validators=[InputRequired(), Length(min=4, max=20)], render_kw={"placeholder": "Mật khẩu"})
-    submit = SubmitField("Đăng nhập")
 #ENUM
 class UserRole(enum.Enum):
-    HOCSINH = 0,
-    NHANVIEN = 1,
-    GIAOVIEN = 2,
-    ADMIN = 3
+    HOCSINH = "học sinh"
+    NHANVIEN = "nhân viên"
+    GIAOVIEN = "giáo viên"
+    ADMIN = "người quản trị"
 
 class LoaiTTLL(enum.Enum):
-    EMAIL = 0,
-    DTCANHAN = 1
+    EMAIL = "Email"
+    DTCANHAN = "Số điện thoại"
 class Grade(enum.Enum):
-    K10 = 0,
-    K11 = 1,
-    K12 = 2
+    K10 = 10
+    K11 = 11
+    K12 = 12
 class ScoreType(enum.Enum):
-    MINS15 = 0,
-    MINS45 = 1,
+    MINS15 = 0
+    MINS45 = 1
     FINAL = 2
 #DATABASE ORM
 class BaseModel(db.Model):
@@ -47,15 +38,15 @@ class User(BaseModel, UserMixin):
     birthdate = Column(String(10))
     username = Column(String(20), nullable= False, unique=True)
     password = Column(String(100), nullable=False)
-    image = Column(String(100))
+    image = Column(String(100), default="https://res.cloudinary.com/dzm6ikgbo/image/upload/v1703999894/okrajh0yr69c5fmo3swn.png")
 
-    students = relationship("Student", backref="info", lazy=True)
-    employees = relationship('Employee', backref="info", lazy= True)
+    student = relationship("Student", backref="info", lazy=True)
+    employee = relationship('Employee', backref="info", lazy= True)
     contacts = relationship('UserContact', backref = "user", lazy=True)
 
-    roles = relationship("UserRoles", backref="user_info", lazy=True)
-    admins = relationship("Admin", backref="info", lazy=True)
-    teachers = relationship("Teacher", backref="info", lazy=True)
+    roles = relationship("UserRoles", backref="user_info", lazy='dynamic')
+    admin = relationship("Admin", backref="info", lazy=True)
+    teacher = relationship("Teacher", backref="info", lazy=True)
     changes = relationship("ChangedNotification", backref="user_detail", lazy=True)
 
 class UserContact(BaseModel):
@@ -105,7 +96,7 @@ class Class(BaseModel):
 
 class Student(ActorBase):
     user_id = Column(Integer, ForeignKey(User.id), primary_key=True, unique=True, nullable=False)
-    grade = Column(Enum(Grade), nullable=False)
+    grade = Column(Enum(Grade), nullable=False, default=Grade.K10)
     semester_id = Column(String(3), ForeignKey(Semester.id), nullable=False)
 
 
@@ -160,8 +151,10 @@ if __name__ == "__main__":
         u3 = User(name="Trần Văn B", gender=True, address="TP. Hồ Chí Minh",
                   birthdate='25-08-2003',
                   username="tvb", password=hashlib.md5("123456".encode("utf-8")).hexdigest())
-
-
+        u4 = User(name="Dương Thùy Bảo Trâm", gender=False, address="Nha Trang, Khánh Hòa",
+                  birthdate='06-10-2003',
+                  username="dtbtram", password=hashlib.md5("123456".encode("utf-8")).hexdigest())
+        hs1 = UserRoles(user_id = 4, role = UserRole.HOCSINH)
         nv1 = UserRoles(user_id = 1, role = UserRole.NHANVIEN)
         nv2 = UserRoles(user_id= 2, role = UserRole.NHANVIEN)
         ad1 = UserRoles(user_id = 2, role = UserRole.ADMIN)
@@ -170,6 +163,19 @@ if __name__ == "__main__":
         no1 = ChangedNotification(user_id = 1, user_role = UserRole.NHANVIEN, content = "thay đổi giao diện front end" )
         no2 = ChangedNotification(user_id=1, user_role=UserRole.NHANVIEN, content="thay đổi models")
         no3 = ChangedNotification(user_id=1, user_role=UserRole.NHANVIEN, content="thay đổi templates")
-        no4 = ChangedNotification(user_id=3, user_role=UserRole.GIAOVIEN, content="nhập điểm")
-        # db.session.add_all([no4])
-        # db.session.commit()
+        # no4 = ChangedNotification(user_id=3, user_role=UserRole.GIAOVIEN, content="nhập điểm")
+        # for i in range(10):
+        #     db.session.add_all([no4])
+        #     db.session.commit()
+        import cloudinary.uploader
+        # path = cloudinary.uploader.upload('Project/static/anonymous.png')
+        # path = cloudinary.uploader.upload('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcROw75hblsK4_TpFmVKfNFNiAAonmyJ-xP1FzIIrl3XUg&s')
+        # print(path['secure_url'])
+        contact_u1_01 = UserContact(user_id = 1, contactType = LoaiTTLL.EMAIL, contactData = "mhphat.c17nvt@gmail.com")
+        contact_u1_02 = UserContact(user_id = 1, contactType = LoaiTTLL.DTCANHAN, contactData="0365051699")
+        k21 = Semester(id = '211', semester = 1, year = '2021-2022')
+        student1 = Student(user_id = 4, grade = Grade.K10, semester_id = k21.id)
+        pcp1 = Principle(type="AGE_START", data = 15, description = "Tuổi học sinh được tiếp nhận từ 15 tuổi đến 20 tuổi")
+        pcp2 = Principle(type="AGE_END", data=20, description="Tuổi học sinh được tiếp nhận từ 15 tuổi đến 20 tuổi")
+        db.session.add_all([pcp1, pcp2])
+        db.session.commit()

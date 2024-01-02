@@ -1,0 +1,58 @@
+{% extends 'layout/base.html'%}
+{% block title %}{{user.name}} - Trang cá nhân{% endblock %}
+{% block content %}
+        <div id="name_box" class="bg-secondary">
+                <div>
+                        <img src="{{user.image}}" class = 'rounded-circle' style="width: 20%; height: 20%">
+                        <div style="margin-left: 20px">
+                                <h1 >{{user.name}}</h1>
+                                <span>{% for r in user.roles: %}
+                                        <p style="margin-bottom: 5px">{{r.role.value.upper()}}</p>
+                                                {% endfor %}</span>
+                        </div>
+                </div>
+                {% if current_user.id == user.id:%}
+                <div>
+                        <div>
+                                <button type="button" class="btn btn-primary mb-4">Thay đổi avatar</button>
+                                <button type="button" class="btn btn-info" onclick="change_password_toggle()">Thay đổi mật khẩu</button>
+                        </div>
+                </div>
+                {% endif %}
+        </div>
+        <div id="content_box">
+                <div>
+                        <h4>Thông tin cá nhân</h4>
+                        <div>
+                                <p><strong>Họ và tên: </strong> {{user.name}}</p>
+                                <p><strong>Giới tính: </strong> {{"Nam" if user.gender==1 else "Nữ"}}</p>
+                                <p><strong>Ngày sinh: </strong> {{user.birthdate}}</p>
+                                <p><strong>Địa chỉ: </strong> {{user.address}}</p>
+                        </div>
+                        <h4>Thông tin khác</h4>
+                        {% if isHocSinh %}
+                        <div>
+                                <p><strong>Khối lớp: </strong> {{user.student[0].grade.value}}</p>
+                                <p><strong>Học kì: </strong> Học kì {{user.student[0].semester.semester}} năm {{user.student[0].semester.year}}</p>
+                                <p><strong>Lớp: </strong> Chưa được xếp lớp </p>
+                        </div>
+                        {% endif %}
+                </div>
+                <div>
+                         <h4>Thông tin liên lạc</h4>
+                        <div>
+                                {% for c in user.contacts%}
+                                <p><strong>{{c.contactType.value}}:</strong> {{c.contactData}}</p>
+                                {% endfor %}
+                        </div>
+                </div>
+        </div>
+        <div id="change_password">
+                <h3>Thay đổi mật khẩu</h3>
+                <label></label>
+                <input>
+        </div>
+{% endblock %}
+{% block script %}
+        <script src= "{{url_for('static', filename = 'js/user_detail.js')}}"></script>
+{% endblock %}
