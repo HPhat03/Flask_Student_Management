@@ -21,7 +21,7 @@
             </div>
     </form>
 
-<button class="btn btn-success">Lưu tất cả học sinh</button>
+<button class="btn btn-success" onclick="validate_all(this)">Lưu tất cả học sinh</button>
 <h4 class="badge bg-info m-3">Danh sách user đang chờ: </h4>
 <div id="result">
     {% if msg['status'] == 'failed' %}

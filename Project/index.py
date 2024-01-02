@@ -65,14 +65,14 @@ def student_management():
     grade = request.args.get('grade')
     page = request.args.get("page")
     page = page if page else 1
-    students = dao.load_students_all(grade=grade, kw=kw)
+    students = dao.load_students_all(grade=grade, kw=kw, page=page)
     total = dao.load_students_count()
     pages = math.ceil(total / app.config['CN_PAGE_SIZE'])
     page = int(page)
     if page == 1:
         tags = {'start': 1, 'end': pages if 3 > pages else 3}
     elif page == pages:
-        tags = {'start': page - 2, 'end': page}
+        tags = {'start': page - 2 if page-2>0 else 1, 'end': page}
     else:
         tags = {'start': page - 1, 'end': page if page + 1 > pages else page + 1}
     return render_template('nhanvien/StudentManagement.html', stuList = students, tags = tags)
@@ -255,39 +255,40 @@ def pending_del(id):
 def validate_user(id):
     users_pending = session.get('pending_users')
     if users_pending and id in users_pending:
-        name = users_pending[id]['name']
-        gender = users_pending[id]['gender']
-        address = users_pending[id]['address']
-        birthdate = users_pending[id]['birthdate']
-        image = users_pending[id]['image']
-        email = users_pending[id]['email']
-        phone = users_pending[id]['phone']
-
-        temp = utils.remove_accents(name).lower().split(" ")
-        username = ""
-        password = ""
-        for i in range(len(temp)):
-            if i < len(temp)-1:
-                username += temp[i][0]
-            else:
-                username += temp[i]
-            password += temp[i]
-
-        msg = {}
-        try:
-            utils.student_registered(name = name, gender = gender,
-                                     address = address, birthdate=birthdate, image=image,
-                                     username = username, password=password, email = email,
-                                     phone = phone)
-        except Exception as ex:
-            msg = {"status": "failed", "message" : f"Hệ thống lỗi: {ex}"}
-        else:
-            msg = {"status": "success", "message": f"Thêm thành công"}
+        msg = utils.objectRegister(users_pending[id])
+        if msg and msg['status']=='success':
             utils.commit_changes("Thêm 1 học sinh")
             users_pending['total'] -= 1
             del users_pending[id]
         session['pending_users'] = users_pending
-        print(username, password, gender, address, birthdate, email, phone)
     return jsonify(msg)
+
+
+@app.route('/api/validate_user', methods = ["POST"])
+def validate_all():
+    user = []
+    count = 0
+    overview = {
+        "failed" : [],
+        "success" : []
+    }
+    session_pending = session.get('pending_users')
+    for pu in session['pending_users'].values():
+        if pu != session['pending_users']['total'] and pu!= session['pending_users']['msg']:
+            user.append(pu)
+    for u in user:
+        print(u)
+        msg = utils.objectRegister(u)
+        print(msg['message'])
+        if msg and msg['status']=='success':
+            overview['success'].append(u['id'])
+            count += 1
+            del session_pending[str(u['id'])]
+            session_pending['total'] -= 1
+        else:
+            overview['failed'].append(u['name'])
+    utils.commit_changes(f"thêm {count} học sinh")
+    session['pending_users'] = session_pending
+    return jsonify(overview)
 if __name__ == "__main__":
     app.run()

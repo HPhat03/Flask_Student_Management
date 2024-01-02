@@ -53,8 +53,36 @@ def commit_changes(content):
     change = ChangedNotification(user_id = user_id, user_role = UserRole[user_role], content = content)
     db.session.add(change)
     db.session.commit()
+def objectRegister(obj):
+    name = obj['name']
+    gender = obj['gender']
+    address = obj['address']
+    birthdate = obj['birthdate']
+    image = obj['image']
+    email = obj['email']
+    phone = obj['phone']
 
+    temp = remove_accents(name).lower().split(" ")
+    username = ""
+    password = ""
+    for i in range(len(temp)):
+        if i < len(temp) - 1:
+            username += temp[i][0]
+        else:
+            username += temp[i]
+        password += temp[i]
 
+    msg = {}
+    try:
+        student_registered(name=name, gender=gender,
+                                 address=address, birthdate=birthdate, image=image,
+                                 username=username, password=password, email=email,
+                                 phone=phone)
+    except Exception as ex:
+        msg = {"status": "failed", "message": f"Hệ thống lỗi: {ex}"}
+    else:
+        msg = {"status": "success", "message": f"Thêm thành công"}
+    return msg
 
 s1 = u'ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚÝàáâãèéêìíòóôõùúýĂăĐđĨĩŨũƠơƯưẠạẢảẤấẦầẨẩẪẫẬậẮắẰằẲẳẴẵẶặẸẹẺẻẼẽẾếỀềỂểỄễỆệỈỉỊịỌọỎỏỐốỒồỔổỖỗỘộỚớỜờỞởỠỡỢợỤụỦủỨứỪừỬửỮữỰựỲỳỴỵỶỷỸỹ'
 s0 = u'AAAAEEEIIOOOOUUYaaaaeeeiioooouuyAaDdIiUuOoUuAaAaAaAaAaAaAaAaAaAaAaAaEeEeEeEeEeEeEeEeIiIiOoOoOoOoOoOoOoOoOoOoOoOoUuUuUuUuUuUuUuYyYyYyYy'

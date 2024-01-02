@@ -29,3 +29,20 @@ function validate(id, obj){
         })
     }
 }
+function validate_all(obj){
+    if (confirm("Xác nhận sao lưu tất cả học sinh trong hàng chờ")==true){
+        obj.disabled = true
+        fetch('/api/validate_user', {
+            method: 'POST'
+        }).then(function(res){
+            return res.json()
+        }).then(function(data){
+            obj.disabled = false
+            console.log(data)
+            alert("Lưu hoàn thành")
+            for(var i = 1; i <= data['success'].length; i++)
+                document.getElementById(i).style.display = 'none'
+
+        })
+    }
+}
