@@ -50,3 +50,27 @@ body{
     transform: translate(-50%, -50%);
     visibility: hidden
 }
+
+#student_box{
+    display: flex;
+    justify-content: center;
+}
+
+.student{
+    background-color: #A0A0A0;
+    width: 90%;
+    height: 300px;
+    padding: 20px;
+    border-radius: 20px;
+
+
+}
+#student_panel_get{
+    overflow: scroll;
+    background-color: white;
+    padding:0;
+    width: 100%;
+    height: 80%;
+
+}
+

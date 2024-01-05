@@ -12,6 +12,7 @@
                 <p>{{form.image.label}} <br>{{form.image}}</p>
            </div>
             <div>
+                <p>{{form.grade.label}} <br> {{form.grade}} </p>
                 <p>{{form.email.label}} <br>{{form.email}}</p>
                 <p>{{form.phone.label}} <br>{{form.phone}}</p>
                 <div style="display:flex; justify-content: space-between">
@@ -47,5 +48,5 @@
 </ul>
 {% endblock%}
 {% block script %}
-        <script src= "{{url_for('static', filename = 'js/add_user.js')}}"></script>
+        <script src= "{{url_for('static', filename = 'js/nhanvien.js')}}"></script>
 {% endblock %}

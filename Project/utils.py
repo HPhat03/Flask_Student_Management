@@ -1,7 +1,10 @@
 import hashlib
-from Project.models import User, UserRole, Employee, Admin, UserRoles, Student, UserContact, LoaiTTLL, ChangedNotification
+import math
+
+from Project.models import User, UserRole, Employee, Admin, UserRoles, Student, UserContact, LoaiTTLL, \
+    ChangedNotification, Grade, Students_Classes
 from flask import session
-from Project import db,dao
+from Project import db, dao, app
 from flask_login import current_user
 
 
@@ -23,8 +26,19 @@ def check_user_by_name(name):
     return User.query.filter(User.name.__eq__(name)).first()
 
 def student_registered(name, gender, address, birthdate, username, password, **kwargs):
+
     password = hashlib.md5(str(password).encode('utf-8')).hexdigest()
-    user = User(name = name,
+    name = name.split(' ')
+    family_name = ""
+    for i in range(len(name)):
+        if i < len(name)-1:
+            family_name += name[i]
+            if i < len(name)-2:
+                family_name += " "
+        else:
+            first_name = name[i]
+    user = User(family_name = family_name,
+                first_name = first_name,
                 gender = gender,
                 address = address,
                 birthdate = birthdate,
@@ -33,11 +47,9 @@ def student_registered(name, gender, address, birthdate, username, password, **k
                 password = password)
     db.session.add(user)
     db.session.commit()
-    print(user.id)
     role = UserRoles(user_id = user.id, role = UserRole.HOCSINH)
     semester_id = dao.get_latest_semester().id
-    print(semester_id)
-    hocsinh_info = Student(user_id = user.id, semester_id = semester_id)
+    hocsinh_info = Student(user_id = user.id, semester_id = semester_id, grade = Grade[kwargs.get('grade')])
     if kwargs.get("email"):
         email = UserContact(user_id = user.id, contactType = LoaiTTLL.EMAIL, contactData = kwargs.get('email'))
         db.session.add(email)
@@ -61,6 +73,7 @@ def objectRegister(obj):
     image = obj['image']
     email = obj['email']
     phone = obj['phone']
+    grade = obj['grade']
 
     temp = remove_accents(name).lower().split(" ")
     username = ""
@@ -77,12 +90,41 @@ def objectRegister(obj):
         student_registered(name=name, gender=gender,
                                  address=address, birthdate=birthdate, image=image,
                                  username=username, password=password, email=email,
-                                 phone=phone)
+                                 phone=phone, grade = grade)
     except Exception as ex:
         msg = {"status": "failed", "message": f"Hệ thống lỗi: {ex}"}
     else:
         msg = {"status": "success", "message": f"Thêm thành công"}
     return msg
+
+def add_students_to_classes(students, classes, max):
+
+    availables = []
+    for i in classes:
+        if dao.load_students_count(i.id) < max:
+            availables.append(i.id)
+    i = 0
+    while len(availables) >0 and len(students) > 0:
+        student = students[0]
+        class_id = availables[i]
+        temp = Students_Classes(class_id=class_id, student_id=student[0].id)
+        db.session.add(temp)
+        db.session.commit()
+        students.pop(0)
+        if dao.load_students_count(class_id) == max:
+            availables.pop(availables.index(class_id))
+        i = 0 if i >= len(availables) - 1 else i + 1
+def pageTags(total, page):
+    pages = math.ceil(total / app.config['CN_PAGE_SIZE'])
+    page = int(page)
+    if page == 1:
+        tags = {'start': 1,'end': pages if 3>pages else 3}
+    elif page == pages:
+        tags = {'start': page-2, 'end': page}
+    else:
+        tags = {'start': page-1,'end' : page if page+1 > pages else page+1}
+    return tags
+
 
 s1 = u'ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚÝàáâãèéêìíòóôõùúýĂăĐđĨĩŨũƠơƯưẠạẢảẤấẦầẨẩẪẫẬậẮắẰằẲẳẴẵẶặẸẹẺẻẼẽẾếỀềỂểỄễỆệỈỉỊịỌọỎỏỐốỒồỔổỖỗỘộỚớỜờỞởỠỡỢợỤụỦủỨứỪừỬửỮữỰựỲỳỴỵỶỷỸỹ'
 s0 = u'AAAAEEEIIOOOOUUYaaaaeeeiioooouuyAaDdIiUuOoUuAaAaAaAaAaAaAaAaAaAaAaAaEeEeEeEeEeEeEeEeIiIiOoOoOoOoOoOoOoOoOoOoOoOoUuUuUuUuUuUuUuYyYyYyYy'

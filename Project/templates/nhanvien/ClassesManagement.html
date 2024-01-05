@@ -6,18 +6,18 @@
             <div class="col-md-2 bg-info p-2" style="height: 100%">
                 <h4>KHỐI LỚP</h4>
                 <div class="list-group">
-                    <a href="/nhanvien/quan_ly_sinh_vien" class="list-group-item">TẤT CẢ</a>
-                    <a href="?grade=K10" class="list-group-item">lớp 10</a>
-                    <a href="?grade=K11" class="list-group-item">lớp 11</a>
-                    <a href="?grade=K12" class="list-group-item">lớp 12</a>
+                    <a href="/nhanvien/quan_ly_lop_hoc" class="list-group-item">TẤT CẢ</a>
+                    <a onclick="setPara('grade','K10')" class="list-group-item">lớp 10</a>
+                    <a onclick="setPara('grade','K11')" class="list-group-item">lớp 11</a>
+                    <a onclick="setPara('grade','K12')" class="list-group-item">lớp 12</a>
                 </div>
             </div>
             <div class="col-md-10 p-2" style="height: 100%">
-                <h4>DANH SÁCH SINH VIÊN</h4>
+                <h4>DANH SÁCH LỚP HỌC</h4>
                 <div style="display:flex; justify-content: space-between">
-                    <a href="them_hoc_sinh"><button type="button" class="btn btn-primary mb-3">Thêm học sinh</button></a>
+                    <a href="them_lop_hoc"><button type="button" class="btn btn-primary mb-3">Thêm lớp học</button></a>
                     <form method="get" style="display: flex; width: 50%">
-                        <input  class="form-control m-3" type="text" placeholder="Tìm kiếm sinh viên..." name="kw">
+                        <input  class="form-control m-3" type="text" placeholder="Tìm kiếm lớp học..." name="kw">
                         <button class="btn btn-info m-3" type="submit" >Tìm kiếm</button>
                     </form>
                 </div>
@@ -28,17 +28,16 @@
                 {% endfor %}
                 </ul>
                 <div id ="student_list mt-3">
-                    {% if stuList: %}
+                    {% if clsList: %}
                     <ul class = 'list-group'>
-                        {% for s in stuList: %}
-                        <a href="/user/{{s.user_id}}" style="text-decoration:none">
+                        {% for s in clsList: %}
+                        <a href="/classes/{{s.id}}" style="text-decoration:none">
                             <li class="list-group-item" style="display: flex;justify-content: space-between; align-items: center">
-                                <div style="width: 3%">{{s.user_id}}</div>
-                                <img style="width: 8%"src="{{s.student_info.image}}" class="rounded-circle" style="width: 50px"/>
-                                <div style = "width:20%">{{s.student_info.name}}</div>
+                                <div style="width: 3%">{{s.id}}</div>
+                                <div style = "width:20%">{{s.name}}</div>
                                 <div style="width: 10%">Khối {{s.grade.value}}</div>
-                                <div style="width: 10%">Kì {{s.semester_id}}</div>
-                                <div style="width: 10%">{{"Nam" if s.student_info.gender == 1 else "Nữ" }}</div>
+                                <div style="width: 10%">Khóa {{s.year}}</div>
+                                <div style="width: 15%">Số lượng HS: {{s.amount}}</div>
                                 <div style="width: 10%">{{s.started_date}}</div>
                                 {% if s.active: %}
                                 <div class="badge bg-success">active</div>
@@ -50,7 +49,7 @@
                     </ul>
                     {% else %}
                         <div style='display:flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%'>
-                        <h1>KHÔNG CÓ HỌC SINH</h1>
+                        <h1>KHÔNG CÓ LỚP HỌC</h1>
                     </div>
                     {% endif %}
                 </div>

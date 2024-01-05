@@ -1,10 +1,16 @@
-from flask import session, redirect, url_for
-from Project.models import UserRole
+from functools import wraps
+from flask import session, url_for, redirect, request
+from Project import app
+
+
 def role_only(role):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            if UserRole[session.get('role')] == role:
-                return func(*args, **kwargs)
-            return redirect(url_for('index'))
-        return wrapper
-    return decorator
+    def wrap(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+                print(type(session.get('role')))
+                if (session.get('role') and role != session.get('role')) or not session.get('role'):
+                    return redirect(url_for("index"))
+                else:
+                    return f(*args, **kwargs)
+        return decorated_function
+    return wrap

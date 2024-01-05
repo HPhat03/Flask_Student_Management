@@ -1,15 +1,14 @@
-import json
 import math
-from datetime import datetime, date
+from datetime import date
 
 import cloudinary.uploader
-from flask import Flask, request, render_template, redirect, url_for, request, session, jsonify
+from flask import render_template, redirect, url_for, request, session, jsonify
 from flask_login import  current_user, login_user, login_required, logout_user
-from Project import app, login, dao, utils
-from Project.models import UserRole, Grade
+from Project import app, login, dao, utils, db
+from Project.models import UserRole, Grade, Class, Students_Classes
 from Project.forms import LoginForm, AddUserForm
+from Project.decorator import role_only
 
-from decorator import role_only
 @login.user_loader
 def user_load(user_id):
     return dao.load_user(user_id)
@@ -47,18 +46,11 @@ def auth():
     changed = dao.load_changed_notification(filter=filter, page=page)
 
     total = dao.load_changed_notifications_count()
-    pages = math.ceil(total/app.config['CN_PAGE_SIZE'])
-    page = int(page)
-    if page == 1:
-        tags = {'start': 1,'end': pages if 3>pages else 3}
-    elif page == pages:
-        tags = {'start': page-2, 'end': page}
-    else:
-        tags = {'start': page-1,'end' : page if page+1 > pages else page+1}
+    tags = utils.pageTags(total, page)
     return render_template("menu.html", tags = tags, notifications=changed)
 @app.route('/nhanvien/quan_ly_sinh_vien')
 @login_required
-# @role_only(UserRole.NHANVIEN)
+@role_only('NHANVIEN')
 def student_management():
 
     kw = request.args.get('kw')
@@ -67,19 +59,12 @@ def student_management():
     page = page if page else 1
     students = dao.load_students_all(grade=grade, kw=kw, page=page)
     total = dao.load_students_count()
-    pages = math.ceil(total / app.config['CN_PAGE_SIZE'])
-    page = int(page)
-    if page == 1:
-        tags = {'start': 1, 'end': pages if 3 > pages else 3}
-    elif page == pages:
-        tags = {'start': page - 2 if page-2>0 else 1, 'end': page}
-    else:
-        tags = {'start': page - 1, 'end': page if page + 1 > pages else page + 1}
+    tags = utils.pageTags(total, page)
     return render_template('nhanvien/StudentManagement.html', stuList = students, tags = tags)
 
-@app.route('/nhanvien/them_hoc_sinh', methods = ["GET", "POST"])
+@app.route('/nhanvien/them_hoc_sinh')
 @login_required
-# @role_only(UserRole.NHANVIEN)
+@role_only('NHANVIEN')
 def add_student():
     form = AddUserForm()
     # session['pending_users'] = None
@@ -90,13 +75,91 @@ def add_student():
         session_pending['total'] = 0
         session['pending_users'] = session_pending
     users_pending = []
-    print(session_pending)
     for c in session['pending_users'].values():
         if c != session['pending_users']['msg'] and c!= session['pending_users']['total']:
             users_pending.append(c)
     msg = session_pending['msg']
     amount = session_pending['total']
     return render_template('nhanvien/AddStudent.html', form = form, users_pending = users_pending, msg = msg, amount= amount)
+@app.route('/nhanvien/quan_ly_lop_hoc')
+@login_required
+@role_only('NHANVIEN')
+def class_management():
+    kw = request.args.get('kw')
+    grade = request.args.get('grade')
+    page = request.args.get("page")
+    page = page if page else 1
+    classes = dao.load_classes_all(grade=grade, kw=kw, page=page)
+    total = dao.load_classes_count()
+
+    tags = utils.pageTags(total, page)
+    return render_template('nhanvien/ClassesManagement.html', clsList= classes, tags=tags)
+
+@app.route('/nhanvien/them_lop_hoc', methods = ['GET', 'POST'])
+@login_required
+@role_only('NHANVIEN')
+def add_classes():
+    msg = None
+    if request.method == "POST":
+        grade = request.form.get('grade')
+        class_size = dao.load_principles_name('CLASS_MAX').data
+        amount = request.form.get('amount')
+        students = dao.load_non_class_students(grade)
+        year = dao.get_latest_semester().year
+        try:
+            if Grade[grade] == Grade.K10:
+                current_classes = dao.load_classes_all(grade = grade, year=year)
+                if len(current_classes) != 0:
+                    utils.add_students_to_classes(students=students, classes=current_classes, max = class_size)
+                if len(students) > 0:
+                    class_amount = math.ceil(len(students) / class_size)
+                    counter = dao.load_classes_count(year)
+                    classes = []
+                    for i in range(class_amount):
+                        name = f"{Grade[grade].value}A{"{:02}".format(counter+i+1)}"
+                        tempClass = Class(name= name, amount = class_size,
+                                          grade = Grade[grade], year = year)
+                        db.session.add(tempClass)
+                        db.session.commit()
+                        classes.append(tempClass)
+                    utils.commit_changes(f"tạo {class_amount} lớp")
+                    utils.add_students_to_classes(students=students, classes=classes, max=class_size)
+            else:
+                for s in students:
+                    old_class = dao.get_the_latest_class_of_student(s[0].id).name
+                    index_class = old_class[-2:]
+                    name = str(Grade[grade].value)
+                    match Grade[grade]:
+                        case Grade.K11:
+                            name += "B"
+                        case Grade.K12:
+                            name += "C"
+                    name += index_class
+                    now_class = dao.load_class(name=name)
+                    if now_class:
+                        temp = Students_Classes(class_id = now_class.id, student_id = s[0].id)
+                        db.session.add(temp)
+                        db.session.commit()
+                    else:
+                        tempClass = Class(name = name,amount = class_size, grade = Grade[grade], year = year)
+                        db.session.add(tempClass)
+                        db.session.commit()
+                        utils.commit_changes("tạo 1 lớp")
+                        temp = Students_Classes(class_id = tempClass.id, student_id = s[0].id)
+                        db.session.add(temp)
+                        db.session.commit()
+        except Exception as exc:
+            msg = {
+                'status' : "failed",
+                'message' : exc
+            }
+        else:
+            utils.commit_changes(f"phân lớp cho {amount} sinh viên")
+            msg = {
+                'status': "success",
+                'message': "Tạo thành công"
+            }
+    return render_template('nhanvien/AddClasses.html', Grade = Grade, msg = msg)
 @app.route("/logout/")
 def logout():
     logout_user()
@@ -111,7 +174,6 @@ def info(user_id):
         if r.role == UserRole.HOCSINH:
             isHocSinh = True
             break
-    print(isHocSinh)
     return render_template('user_detail.html', user = user, UserRole = UserRole, isHocSinh = isHocSinh)
 
 @app.context_processor
@@ -127,7 +189,7 @@ def common_things():
                     {'name': 'Quản lý sinh viên',
                      'link': "/nhanvien/quan_ly_sinh_vien"},
                     {'name': 'Quản lý lớp',
-                     'link': '#'},
+                     'link': '/nhanvien/quan_ly_lop_hoc'},
                     {'name': 'Quy định chung',
                      'link': '#'}
                 ]
@@ -156,24 +218,9 @@ def common_things():
         'msg' : msg
     }
 
-#API TESTING
-@app.route("/api/users", methods = ['GET', 'POST'])
-def getuser():
-    test = dao.load_user_all()
-    list = []
-    for t in test:
-        temp = {
-            "id": t.id,
-            "name": t.name,
-            "username": t.username,
-            "password": t.password,
-            "user_role": UserRole(t.user_role).name
-        }
-        list.append(temp)
-    return jsonify(list)
-
-
+#API
 @app.route('/api/user_pending', methods = ["POST"])
+@login_required
 def pending():
     list = session.get('pending_users')
     age_start = dao.load_principles_name("AGE_START")
@@ -186,7 +233,7 @@ def pending():
     address = request.form.get('address')
     email = request.form.get('email')
     phone = request.form.get('phone')
-
+    grade = request.form.get('grade')
     birthyear = int(birthdate[:4])
     birthmonth = int(birthdate[5:7])
     birthday = int(birthdate[8:10])
@@ -228,7 +275,8 @@ def pending():
             'birthdate': f'{birthday}-{birthmonth}-{birthyear}',
             'address': address,
             'email': email,
-            'phone': phone
+            'phone': phone,
+            'grade': grade
         }
         list['msg'] = {
             'status': "success",
@@ -237,11 +285,10 @@ def pending():
     list['total'] = len(list)-2
     session['pending_users'] = list
     return redirect(url_for("add_student"))
-
 @app.route('/api/user_pending/<id>', methods = ["DELETE"])
+
 def pending_del(id):
     users_pending = session.get('pending_users')
-    print(users_pending[id])
     if users_pending and id in users_pending:
         image = users_pending[id]['image'].split("/")
         public_id = image[-1][:-4]
@@ -250,7 +297,6 @@ def pending_del(id):
         del users_pending[id]
     session['pending_users'] = users_pending
     return jsonify(users_pending)
-
 @app.route('/api/validate_user/<id>', methods = ["POST"])
 def validate_user(id):
     users_pending = session.get('pending_users')
@@ -262,13 +308,12 @@ def validate_user(id):
             del users_pending[id]
         session['pending_users'] = users_pending
     return jsonify(msg)
-
-
 @app.route('/api/validate_user', methods = ["POST"])
 def validate_all():
     user = []
     count = 0
     overview = {
+        "status" : "success",
         "failed" : [],
         "success" : []
     }
@@ -276,10 +321,11 @@ def validate_all():
     for pu in session['pending_users'].values():
         if pu != session['pending_users']['total'] and pu!= session['pending_users']['msg']:
             user.append(pu)
+    if user == []:
+        overview = {"status": "failed", "message":"Danh sách rỗng!"}
+        return jsonify(overview)    
     for u in user:
-        print(u)
         msg = utils.objectRegister(u)
-        print(msg['message'])
         if msg and msg['status']=='success':
             overview['success'].append(u['id'])
             count += 1
@@ -290,5 +336,20 @@ def validate_all():
     utils.commit_changes(f"thêm {count} học sinh")
     session['pending_users'] = session_pending
     return jsonify(overview)
+
+@app.route('/api/non_class_student/<grade>')
+def get_non_class(grade):
+
+    students = dao.load_non_class_students(grade)
+    list = []
+    for s in students:
+        temp = {
+            'id': s[0].id,
+            'name': s[0].name,
+            'grade': s[1].grade.value,
+            'semester': f"Học kì {s[1].semester.semester} năm {s[1].semester.year}"
+        }
+        list.append(temp)
+    return jsonify(list)
 if __name__ == "__main__":
     app.run()
