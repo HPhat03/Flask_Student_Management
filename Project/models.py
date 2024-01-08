@@ -1,4 +1,5 @@
 import enum
+import hashlib
 
 from sqlalchemy.ext.hybrid import hybrid_property
 
@@ -53,7 +54,7 @@ class User(BaseModel, UserMixin):
 
     roles = relationship("UserRoles", backref="user_info", lazy=True)
     admin = relationship("Admin", backref="admin_info", lazy=True)
-    teacher = relationship("Teacher", backref="info", lazy=True)
+    teacher = relationship("Teacher", backref="teacher_info", lazy=True)
     changes = relationship("ChangedNotification", backref="user_detail", lazy=True)
 
 class UserContact(BaseModel):
@@ -84,7 +85,7 @@ class Teacher(ActorBase):
 
     classes = relationship("Class", backref="teacher_detail", lazy=True)
     subjects = relationship("Teachers_Subjects", backref="teacher_detail", lazy=True)
-    scores = relationship("Score", backref="teacher_detail", lazy=True)
+    teaching_plan = relationship("TeachingPlan", backref="teacher_detail", lazy=True)
 class Semester(db.Model):
     id = Column(String(3), primary_key=True, nullable=False)
     semester = Column(Integer, nullable=False)
@@ -101,7 +102,7 @@ class Class(BaseModel):
     teacher_id = Column(Integer, ForeignKey(Teacher.user_id))
 
     students = relationship("Students_Classes", backref="class_detail", lazy=True)
-
+    teaching_plan = relationship("TeachingPlan", backref="class_detail", lazy=True)
 class Student(ActorBase):
     user_id = Column(Integer, ForeignKey(User.id), primary_key=True, unique=True, nullable=False)
     grade = Column(Enum(Grade), nullable=False, default=Grade.K10)
@@ -119,19 +120,30 @@ class Students_Classes(db.Model):
 class Subject(BaseModel):
     name = Column(String(20), nullable=False)
     grade = Column(Enum(Grade), nullable=False)
-
+    mins15 = Column(Integer, default=1)
+    mins45 = Column(Integer, default=1)
+    final = Column(Integer, default=1)
     teachers = relationship("Teachers_Subjects", backref="subject_detail", lazy=True)
-    scores = relationship("Score", backref="subject_detail", lazy=True)
-class Teachers_Subjects(db.Model):
-    # __table_args__ = {"extend_existing": True}
-    teacher_id = Column(Integer, ForeignKey(Teacher.user_id), primary_key=True, nullable=False)
-    subject_id = Column(Integer,ForeignKey(Subject.id), primary_key=True, nullable=False)
+    teaching_plan = relationship("TeachingPlan", backref="subject_detail", lazy=True)
 
-class Score(BaseModel):
+class Teachers_Subjects(db.Model):
+    __table_args__ = (UniqueConstraint('teacher_id', 'subject_id'),)
+    id = Column(Integer, primary_key=True)
+    teacher_id = Column(Integer, ForeignKey(Teacher.user_id), nullable=False)
+    subject_id = Column(Integer,ForeignKey(Subject.id), nullable=False)
+
+
+class TeachingPlan(BaseModel):
+    teacher_id = Column(Integer,ForeignKey(Teacher.user_id), nullable=False)
     subject_id = Column(Integer, ForeignKey(Subject.id), nullable=False)
+    class_id = Column(Integer, ForeignKey(Class.id), nullable=False)
+
+    student_scores = relationship("Score", backref="plan_detail", lazy=True)
+class Score(BaseModel):
+    plan_id = Column(Integer, ForeignKey(TeachingPlan.id), nullable=False)
     student_id = Column(Integer, ForeignKey(Student.user_id), nullable=False)
     semester_id = Column(String(3), ForeignKey(Semester.id), nullable=False)
-    teacher_id = Column(Integer, ForeignKey(Teacher.user_id), nullable=False)
+
 
     details = relationship("ScoreDetails", backref="info", lazy=True)
 class ScoreDetails(BaseModel):
@@ -152,7 +164,14 @@ if __name__ == "__main__":
     from Project import  app
     with app.app_context():
         db.create_all()
-        pcp3 = Principle(type="CLASS_AMOUNT",data=45, description="Lớp học có tối đa 45 học sinh")
+        # u1 = User(family_name="Nguyễn Thị Ngọc", first_name = "Mai", gender=False, address="Nha Trang", birthdate="11-11-1990",
+        #           username = "ntnmai", password = hashlib.md5("123456".encode("utf-8")).hexdigest())
+        # db.session.add(u1)
+        # db.session.commit()
+        # gv1 = UserRoles(user_id = u1.id, role = UserRole.GIAOVIEN)
+        # db.session.add(gv1)
+        # db.session.commit()
+        # pcp3 = Principle(type="CLASS_AMOUNT",data=45, description="Lớp học có tối đa 45 học sinh")
         # db.session.add(pcp3)
         # db.session.commit()
         # import hashlib

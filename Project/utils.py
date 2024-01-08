@@ -2,7 +2,7 @@ import hashlib
 import math
 
 from Project.models import User, UserRole, Employee, Admin, UserRoles, Student, UserContact, LoaiTTLL, \
-    ChangedNotification, Grade, Students_Classes
+    ChangedNotification, Grade, Students_Classes, ScoreDetails
 from flask import session
 from Project import db, dao, app
 from flask_login import current_user
@@ -85,7 +85,6 @@ def objectRegister(obj):
             username += temp[i]
         password += temp[i]
 
-    msg = {}
     try:
         student_registered(name=name, gender=gender,
                                  address=address, birthdate=birthdate, image=image,
@@ -107,7 +106,7 @@ def add_students_to_classes(students, classes, max):
     while len(availables) >0 and len(students) > 0:
         student = students[0]
         class_id = availables[i]
-        temp = Students_Classes(class_id=class_id, student_id=student[0].id)
+        temp = Students_Classes(class_id=class_id, student_id=student.user_id)
         db.session.add(temp)
         db.session.commit()
         students.pop(0)
@@ -125,7 +124,22 @@ def pageTags(total, page):
         tags = {'start': page-1,'end' : page if page+1 > pages else page+1}
     return tags
 
+def update_score_record(record, list):
+    if len(list) > 0:
+        if list[0] == "":
+            db.session.delete(record)
+            db.session.commit()
+        else:
+            record.score = float(list[0])
+        db.session.commit()
+        list.pop(0)
 
+def add_score_record(list, Scoretype, score):
+    for sd in list:
+        if sd != '':
+            temp = ScoreDetails(score_id=score.id, score_type=Scoretype, score=float(sd))
+            db.session.add(temp)
+            db.session.commit()
 s1 = u'ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚÝàáâãèéêìíòóôõùúýĂăĐđĨĩŨũƠơƯưẠạẢảẤấẦầẨẩẪẫẬậẮắẰằẲẳẴẵẶặẸẹẺẻẼẽẾếỀềỂểỄễỆệỈỉỊịỌọỎỏỐốỒồỔổỖỗỘộỚớỜờỞởỠỡỢợỤụỦủỨứỪừỬửỮữỰựỲỳỴỵỶỷỸỹ'
 s0 = u'AAAAEEEIIOOOOUUYaaaaeeeiioooouuyAaDdIiUuOoUuAaAaAaAaAaAaAaAaAaAaAaAaEeEeEeEeEeEeEeEeIiIiOoOoOoOoOoOoOoOoOoOoOoOoUuUuUuUuUuUuUuYyYyYyYy'
 def remove_accents(input_str):

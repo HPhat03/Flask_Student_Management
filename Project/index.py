@@ -5,7 +5,7 @@ import cloudinary.uploader
 from flask import render_template, redirect, url_for, request, session, jsonify
 from flask_login import  current_user, login_user, login_required, logout_user
 from Project import app, login, dao, utils, db
-from Project.models import UserRole, Grade, Class, Students_Classes
+from Project.models import UserRole, Grade, Class, Students_Classes, TeachingPlan, ScoreType, Score, ScoreDetails
 from Project.forms import LoginForm, AddUserForm
 from Project.decorator import role_only
 
@@ -111,6 +111,7 @@ def add_classes():
                 current_classes = dao.load_classes_all(grade = grade, year=year)
                 if len(current_classes) != 0:
                     utils.add_students_to_classes(students=students, classes=current_classes, max = class_size)
+
                 if len(students) > 0:
                     class_amount = math.ceil(len(students) / class_size)
                     counter = dao.load_classes_count(year)
@@ -176,6 +177,16 @@ def info(user_id):
             break
     return render_template('user_detail.html', user = user, UserRole = UserRole, isHocSinh = isHocSinh)
 
+@app.route("/class/<class_id>")
+@login_required
+def class_info(class_id):
+    myClass = dao.load_class(class_id)
+    isEditable = UserRole[session.get('role')] == UserRole.NHANVIEN
+    teachers = dao.load_non_homeroom_teacher(myClass.year)
+    subjects = dao.load_subject_all(myClass.grade, non_plan=True, class_id=myClass.id)
+    content = f'{dao.load_students_count(myClass.id)}/{int(dao.load_principles_name("CLASS_MAX").data)}'
+    return render_template('class_detail.html', myClass = myClass, isEditable = isEditable, teachers = teachers,
+                           subjects = subjects, student_count = content)
 @app.context_processor
 def common_things():
     missions = []
@@ -206,10 +217,10 @@ def common_things():
             case 'GIAOVIEN':
                 msg = "Xin chào giáo viên %s" % current_user.name
                 missions = [
-                    {'name': 'Lớp',
-                     'link': '#'},
-                    {'name': 'Quản lý Điểm',
-                     'link': '#'},
+                    {'name': 'Nhập điểm',
+                     'link': '/giaovien/nhap_diem'},
+                    {'name': 'Xuất Điểm',
+                     'link': '/giaovien/xuat_diem'},
                     {'name': 'Quy định chung',
                      'link': '#'}
                 ]
@@ -337,19 +348,341 @@ def validate_all():
     session['pending_users'] = session_pending
     return jsonify(overview)
 
-@app.route('/api/non_class_student/<grade>')
+@app.route('/api/non_class_student/<grade>', methods = ['GET', 'POST'])
 def get_non_class(grade):
-
-    students = dao.load_non_class_students(grade)
+    kw = request.args.get('kw')
+    year = request.json.get('year') if request.method=='POST' else None
+    students = dao.load_non_class_students(grade, kw, year)
     list = []
     for s in students:
         temp = {
-            'id': s[0].id,
-            'name': s[0].name,
-            'grade': s[1].grade.value,
-            'semester': f"Học kì {s[1].semester.semester} năm {s[1].semester.year}"
+            'id': s.student_info.id,
+            'name': s.student_info.name,
+            'grade': s.grade.value,
+            'semester': f"Học kì {s.semester.semester} năm {s.semester.year}"
         }
         list.append(temp)
     return jsonify(list)
+@app.route('/api/change_class/<class_id>', methods = ['PUT', 'DELETE', 'POST'])
+def change_info(class_id):
+    myClass = dao.load_class(class_id)
+    data = request.json
+    change = data.get('change')
+    failed = {
+        "status": "failed",
+        "message": ""
+    }
+    success = {
+        "status": "success",
+        "message": "Thay đổi thành công"
+    }
+    msg = {}
+    if request.method == "PUT":
+        match change:
+            case "teacher":
+                teacher_id = data.get('teacher_id')
+                try:
+                    myClass.teacher_id = teacher_id
+                    db.session.commit()
+                except Exception as exc:
+                    msg = failed
+                    msg['message'] = str(exc)
+                else:
+                    msg = success
+                    utils.commit_changes(f"điều chỉnh giáo viên của lớp {myClass.name} - {myClass.year}")
+            case "active":
+                try:
+                    myClass.active = not myClass.active
+                    db.session.commit()
+                except Exception as exc:
+                    msg = failed
+                    msg['message'] = str(exc)
+                else:
+                    msg = success
+                    utils.commit_changes(f"điều chỉnh trạng thái của lớp {myClass.name} - {myClass.year}")
+            case "teacher_subject":
+                teacher_id = data.get('teacher_id')
+                subject_id = data.get('subject_id')
+                msg = failed
+                msg['message'] = "Không tìm thấy"
+                for pl in myClass.teaching_plan:
+                    if pl.subject_id == subject_id:
+                        try:
+                            pl.teacher_id = teacher_id
+                            db.session.commit()
+                        except Exception as exc:
+                            msg = failed
+                            msg['message'] = str(exc)
+                        else:
+                            msg = success
+                            utils.commit_changes(f"điều chỉnh giáo viên dạy môn {pl.subject_detail.name}"
+                                                 f" của lớp {myClass.name} - {myClass.year}")
+    elif request.method == "DELETE":
+        match change:
+            case "subject":
+                subject_id = data.get("subject_id")
+                msg =failed
+                msg['message'] = "Không tìm thấy"
+                for pl in myClass.teaching_plan:
+                    if pl.subject_id == subject_id:
+                        try:
+                            name = pl.subject_detail.name
+                            db.session.delete(pl)
+                            db.session.commit()
+                        except Exception as exc:
+                            msg = failed
+                            msg['message'] = str(exc)
+                        else:
+                            msg = success
+                            utils.commit_changes(f"Xóa môn {name} khỏi lớp {myClass.name} - {myClass.year}")
+
+            case "student":
+                student_id = data.get('student_id')
+                msg = failed
+                msg['message'] = "Không tìm thấy"
+                for s in myClass.students:
+                    if s.student_id == student_id:
+                        try:
+                            name = s.student_detail.student_info.name
+                            db.session.delete(s)
+                            db.session.commit()
+                        except Exception as exc:
+                            msg = failed
+                            msg['message'] = str(exc)
+                        else:
+                            msg = success
+                            utils.commit_changes(f"xóa học sinh {name} khỏi lớp {myClass.name} - {myClass.year} ")
+    else:
+        match change:
+            case "subject":
+                subject_id = data.get('subject_id')
+                teacher_id = data.get('teacher_id')
+                try:
+                    temp = TeachingPlan(teacher_id = teacher_id, subject_id = subject_id, class_id=class_id)
+                    db.session.add(temp)
+                    db.session.commit()
+                except Exception as exc:
+                    msg = failed
+                    msg['message'] = str(exc)
+                else:
+                    msg = success
+                    utils.commit_changes(f"thêm môn {temp.subject_detail.name} vào lớp {myClass.name} - {myClass.year}")
+            case "student":
+                students = data.get('students_id')
+                print(students)
+                class_max = dao.load_principles_name("CLASS_MAX").data
+                if dao.load_students_count(myClass.id) + len(students) <= class_max:
+                    try:
+                        for s_id in students:
+                            temp = Students_Classes(student_id = s_id, class_id = myClass.id)
+
+                            db.session.add(temp)
+                            db.session.commit()
+                        myClass.amount = dao.load_students_count(myClass.id)
+                        db.session.commit()
+                    except Exception as exc:
+                        msg = failed
+                        msg['message'] = str(exc)
+                    else:
+                        msg = success
+                        utils.commit_changes(f"thêm {len(students)} vào lớp {myClass.name} - {myClass.year}")
+                else:
+                    msg = failed
+                    msg['message'] = "Lớp đầy, không thể thêm"
+    return jsonify(msg)
+@app.route('/api/subject_teacher/<subject_id>')
+def get_subject_teacher(subject_id):
+    teachers = dao.load_teachers_of_subject(subject_id)
+    list = []
+    for t in teachers:
+        temp = {
+            "id": t.user_id,
+            "name": t.teacher_info.name
+        }
+        list.append(temp)
+    return jsonify(list)
+
+##GIAO VIEN
+@app.route('/giaovien/nhap_diem')
+def input_score():
+    semesters = dao.get_semester()
+    classes = dao.load_classes_all()
+    teachers_subjects = dao.load_teachers_subjects()
+    return render_template('/giaovien/inputScore.html', semesters = semesters,
+                           classes = classes, teachers_subjects = teachers_subjects, grade = Grade)
+
+@app.route('/giaovien/xuat_diem')
+def output_score():
+    semesters = dao.load_years_of_semester()
+    print(semesters)
+    classes = dao.load_classes_all()
+    teachers_subjects = dao.load_teachers_subjects()
+    return render_template('/giaovien/outputScore.html', semesters=semesters,
+                           classes=classes, teachers_subjects=teachers_subjects, grade=Grade)
+
+
+@app.route("/api/teaching_plan/<teacher_id>", methods = ['POST'])
+def get_info(teacher_id):
+    data = request.json
+    semester = data.get("semester")
+    grade = data.get("grade")
+    subject = data.get("subject")
+    myClass = data.get("myClass")
+    type = data.get("type")
+    msg = {
+        "myClass": [] if myClass == "" else myClass,
+        "subject": [] if subject == "" else subject
+    }
+    if myClass == "":
+        listClass = []
+        if type == "input":
+            myClass = dao.load_class_of_teacher(teacher_id, semester, grade)
+        else:
+            myClass = dao.load_class_of_teacher(teacher_id, grade= grade, year= semester)
+        for cl in myClass:
+            temp = {
+                "id": cl.id,
+                "name": cl.name
+            }
+            listClass.append(temp)
+        msg["myClass"] = listClass
+
+    elif subject == "":
+        listSubject = []
+        mySubject = dao.load_subject_planned_teacher(teacher_id, myClass)
+        for sb in mySubject:
+            temp = {
+                "id": sb.id,
+                "name": sb.name
+            }
+            listSubject.append(temp)
+        msg["subject"] = listSubject
+
+    elif type == "input":
+        teaching_plan = dao.load_teaching_plan(teacher_id, myClass, subject)[0]
+        myStu = []
+        for s in teaching_plan.class_detail.students:
+            student_score = dao.load_score_of_student(teaching_plan.id, s.student_detail.user_id, semester)
+
+            mins15, mins45, final = [], [], []
+            if student_score:
+                for s_c in student_score.details:
+                    match s_c.score_type:
+                        case ScoreType.MINS15:
+                            mins15.append(s_c.score)
+                        case ScoreType.MINS45:
+                            mins45.append(s_c.score)
+                        case ScoreType.FINAL:
+                            final.append(s_c.score)
+            temp = {
+                "id": s.student_detail.user_id,
+                "name": s.student_detail.student_info.name,
+                "mins15": mins15,
+                "mins45": mins45,
+                "final": final
+            }
+            myStu.append(temp)
+        temp = {
+            "id": teaching_plan.id,
+            "class_name": teaching_plan.class_detail.name,
+            "subject_name": teaching_plan.subject_detail.name,
+            "semester": dao.load_semester_by_id(semester).semester,
+            "semester_year": dao.load_semester_by_id(semester).year,
+            "students": myStu,
+            "mins15": teaching_plan.subject_detail.mins15,
+            "mins45": teaching_plan.subject_detail.mins45,
+            "final": teaching_plan.subject_detail.final
+        }
+        msg["teaching_plan"] = temp
+    else:
+        print(data)
+        myClass = dao.load_class(id=myClass)
+        semester = dao.get_semester(semester)
+        teaching_plan = dao.load_teaching_plan(teacher_id,myClass.id,subject)[0]
+        subject = teaching_plan.subject_detail
+        len_required = subject.mins15 + subject.mins45 + subject.final
+        print(subject, len_required)
+        stuList = []
+        for s in myClass.students:
+            student = {
+                "id": s.student_detail.user_id,
+                "name": s.student_detail.student_info.name,
+                "class": myClass.name,
+                "avg1": "hiện không khả dụng",
+                "avg2": "hiện không khả dụng",
+            }
+            for sm in semester:
+                stuScore = dao.load_score_of_student(teaching_plan.id,s.student_detail.user_id,sm.id)
+                dtb = 0
+                sum=0
+                if stuScore.details == [] or len(stuScore.details) < len_required:
+                    student[f'avg{sm.semester}'] = f"Chưa đầy đủ điểm học kì {sm.semester} năm {sm.year}"
+                    continue
+                for sc in stuScore.details:
+                    match sc.score_type:
+                        case ScoreType.MINS15:
+                            dtb += sc.score
+                            sum += 1
+                        case ScoreType.MINS45:
+                            dtb += (sc.score*2)
+                            sum += 2
+                        case ScoreType.FINAL:
+                            dtb += (sc.score*3)
+                            sum += 3
+                dtb = float(dtb/sum) if sum!= 0 else 0
+                student[f'avg{sm.semester}'] = format(dtb, '.2f')
+            stuList.append(student)
+        temp = {
+            "semester_year": semester[0].year,
+            "students": stuList
+        }
+        msg["overview"] = temp
+    return jsonify(msg)
+
+@app.route("/api/score_validate", methods = ["POST"])
+def validate_score():
+    data = request.json
+    plan_id = data.get('plan_id')
+    students = data.get('students')
+    semester_id = data.get('semester_id')
+    print(students)
+    failed = {
+         "status": "failed",
+         "message": ""
+    }
+    success = {
+         "status": "success",
+         "message": "Xác nhận thành công"
+    }
+    for s in students:
+        print(type(plan_id), type(int(s['id'])), type(semester_id))
+        score_label = dao.load_score_of_student(plan_id, int(s['id']), semester_id)
+
+        if score_label is None:
+            try:
+                score_label = Score(plan_id = plan_id, student_id = int(s['id']), semester_id = semester_id)
+                db.session.add(score_label)
+                db.session.commit()
+            except Exception as exc:
+                msg = failed
+                msg['message'] = str(exc)
+                return jsonify(msg)
+        print(score_label.id)
+        if len(score_label.details) > 0:
+            for s_d in score_label.details:
+                match s_d.score_type:
+                    case ScoreType.MINS15:
+                        utils.update_score_record(s_d, s['mins15'])
+                    case ScoreType.MINS45:
+                        utils.update_score_record(s_d, s['mins45'])
+                    case ScoreType.FINAL:
+                        utils.update_score_record(s_d, s['final'])
+
+        utils.add_score_record(s['mins15'], ScoreType.MINS15, score_label)
+        utils.add_score_record(s['mins45'], ScoreType.MINS45, score_label)
+        utils.add_score_record(s['final'], ScoreType.FINAL, score_label)
+    msg = success
+    return jsonify(msg)
+
 if __name__ == "__main__":
     app.run()
