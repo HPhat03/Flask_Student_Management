@@ -28,7 +28,6 @@ class ScoreType(enum.Enum):
     FINAL = 2
 #DATABASE ORM
 class BaseModel(db.Model):
-    # __table_args__ = {"extend_existing": True}
     __abstract__ = True
 
     id = Column(Integer, primary_key= True, autoincrement= True)
@@ -63,7 +62,6 @@ class UserContact(BaseModel):
     contactData = Column(String(30))
 
 class ActorBase(db.Model):
-    # __table_args__ = {"extend_existing": True}
     __abstract__ = True
 
     started_date = Column(DateTime, default=datetime.now())
@@ -112,13 +110,12 @@ class Student(ActorBase):
     classes = relationship("Students_Classes", backref="student_detail", lazy=True)
     scores = relationship("Score", backref="student_detail", lazy=True)
 class Students_Classes(db.Model):
-    # __table_args__ = {"extend_existing": True}
     id = Column(Integer, primary_key=True, nullable=False)
     class_id = Column(Integer, ForeignKey(Class.id), nullable=False)
     student_id = Column(Integer, ForeignKey(Student.user_id), nullable=False)
 
 class Subject(BaseModel):
-    name = Column(String(20), nullable=False)
+    name = Column(String(20), nullable=False, unique = True)
     grade = Column(Enum(Grade), nullable=False)
     mins15 = Column(Integer, default=1)
     mins45 = Column(Integer, default=1)

@@ -1,3 +1,4 @@
+import hashlib
 import math
 from datetime import date
 
@@ -17,6 +18,8 @@ def user_load(user_id):
 def index():
 
     if current_user.is_authenticated:
+        if session.get('role') == 'ADMIN':
+            return redirect('/admin')
         return redirect(url_for("auth"))
 
     return redirect(url_for("login"))
@@ -81,6 +84,18 @@ def add_student():
     msg = session_pending['msg']
     amount = session_pending['total']
     return render_template('nhanvien/AddStudent.html', form = form, users_pending = users_pending, msg = msg, amount= amount)
+@app.route('/nhanvien/xet_len_lop')
+@login_required
+@role_only('NHANVIEN')
+def urgrade_students():
+    previous_semester = dao.get_previous_semester()
+    students = dao.load_students_all(semester="211")
+    curSemester = dao.get_latest_semester()
+    stuList = []
+    for s in students:
+        overall = utils.overall_score(s.user_id, previous_semester.year)
+        stuList.append((s,format(overall, '.2f')))
+    return render_template("nhanvien/UpgradeStudent.html", students=stuList, curSemester=curSemester, preSemester= previous_semester)
 @app.route('/nhanvien/quan_ly_lop_hoc')
 @login_required
 @role_only('NHANVIEN')
@@ -170,12 +185,19 @@ def logout():
 @login_required
 def info(user_id):
     user = dao.load_user(user_id)
-    isHocSinh = False
+    role = None
+
+    student_class = ""
     for r in user.roles:
         if r.role == UserRole.HOCSINH:
-            isHocSinh = True
+            role = UserRole.HOCSINH.value
+            student_class = dao.get_the_latest_class_of_student(user.id)
+            student_class = student_class.name if student_class else "Chưa được xếp lớp"
             break
-    return render_template('user_detail.html', user = user, UserRole = UserRole, isHocSinh = isHocSinh)
+        if r.role == UserRole.GIAOVIEN:
+            role = UserRole.GIAOVIEN.value
+
+    return render_template('user_detail.html', user = user, UserRole = UserRole, role = role, student_class = student_class)
 
 @app.route("/class/<class_id>")
 @login_required
@@ -184,7 +206,7 @@ def class_info(class_id):
     isEditable = UserRole[session.get('role')] == UserRole.NHANVIEN
     teachers = dao.load_non_homeroom_teacher(myClass.year)
     subjects = dao.load_subject_all(myClass.grade, non_plan=True, class_id=myClass.id)
-    content = f'{dao.load_students_count(myClass.id)}/{int(dao.load_principles_name("CLASS_MAX").data)}'
+    content = f'{dao.load_students_count(myClass.id)}/{myClass.amount}'
     return render_template('class_detail.html', myClass = myClass, isEditable = isEditable, teachers = teachers,
                            subjects = subjects, student_count = content)
 @app.context_processor
@@ -202,16 +224,6 @@ def common_things():
                     {'name': 'Quản lý lớp',
                      'link': '/nhanvien/quan_ly_lop_hoc'},
                     {'name': 'Quy định chung',
-                     'link': '#'}
-                ]
-            case 'ADMIN':
-                msg = "Xin chào quản trị %s" % current_user.name
-                missions = [
-                    {'name': 'Quản lý môn học',
-                     'link': '#'},
-                    {'name': 'Thống kê báo cáo',
-                     'link': '#'},
-                    {'name': 'Quản lý quy định',
                      'link': '#'}
                 ]
             case 'GIAOVIEN':
@@ -469,8 +481,7 @@ def change_info(class_id):
                     utils.commit_changes(f"thêm môn {temp.subject_detail.name} vào lớp {myClass.name} - {myClass.year}")
             case "student":
                 students = data.get('students_id')
-                print(students)
-                class_max = dao.load_principles_name("CLASS_MAX").data
+                class_max = myClass.amount
                 if dao.load_students_count(myClass.id) + len(students) <= class_max:
                     try:
                         for s_id in students:
@@ -504,6 +515,8 @@ def get_subject_teacher(subject_id):
 
 ##GIAO VIEN
 @app.route('/giaovien/nhap_diem')
+@login_required
+@role_only('GIAOVIEN')
 def input_score():
     semesters = dao.get_semester()
     classes = dao.load_classes_all()
@@ -512,6 +525,8 @@ def input_score():
                            classes = classes, teachers_subjects = teachers_subjects, grade = Grade)
 
 @app.route('/giaovien/xuat_diem')
+@login_required
+@role_only('GIAOVIEN')
 def output_score():
     semesters = dao.load_years_of_semester()
     print(semesters)
@@ -615,7 +630,7 @@ def get_info(teacher_id):
                 stuScore = dao.load_score_of_student(teaching_plan.id,s.student_detail.user_id,sm.id)
                 dtb = 0
                 sum=0
-                if stuScore.details == [] or len(stuScore.details) < len_required:
+                if stuScore is None or stuScore.details == [] or len(stuScore.details) < len_required:
                     student[f'avg{sm.semester}'] = f"Chưa đầy đủ điểm học kì {sm.semester} năm {sm.year}"
                     continue
                 for sc in stuScore.details:
@@ -645,7 +660,8 @@ def validate_score():
     plan_id = data.get('plan_id')
     students = data.get('students')
     semester_id = data.get('semester_id')
-    print(students)
+    class_id = data.get('class_id')
+    myClass = dao.load_class(class_id)
     failed = {
          "status": "failed",
          "message": ""
@@ -655,7 +671,6 @@ def validate_score():
          "message": "Xác nhận thành công"
     }
     for s in students:
-        print(type(plan_id), type(int(s['id'])), type(semester_id))
         score_label = dao.load_score_of_student(plan_id, int(s['id']), semester_id)
 
         if score_label is None:
@@ -667,7 +682,6 @@ def validate_score():
                 msg = failed
                 msg['message'] = str(exc)
                 return jsonify(msg)
-        print(score_label.id)
         if len(score_label.details) > 0:
             for s_d in score_label.details:
                 match s_d.score_type:
@@ -681,8 +695,54 @@ def validate_score():
         utils.add_score_record(s['mins15'], ScoreType.MINS15, score_label)
         utils.add_score_record(s['mins45'], ScoreType.MINS45, score_label)
         utils.add_score_record(s['final'], ScoreType.FINAL, score_label)
+    utils.commit_changes(f"thay đổi điểm của lớp {myClass.name}")
     msg = success
     return jsonify(msg)
 
+@app.route("/api/subjects/<grade>")
+def subject_of_grade(grade):
+    grade = Grade[grade]
+    subjects = dao.load_subject_all(grade=grade)
+    res = []
+    for s in subjects:
+        temp = {
+            'id' : s.id,
+            'name': s.name
+        }
+        res.append(temp)
+    return jsonify(res)
+
+@app.route("/api/change_password/<user_id>", methods = ["POST"])
+def change_password(user_id):
+    data = request.json
+    oldPw = data.get("old")
+    newPw = data.get("new")
+    user = dao.load_user(user_id)
+    if hashlib.md5(oldPw.encode("utf-8")).hexdigest() == user.password:
+        user.password = hashlib.md5(newPw.encode("utf-8")).hexdigest()
+        db.session.commit()
+        msg = {
+            "message": "Cập nhật thành công"
+        }
+    else:
+        msg = {
+            "message": "Mật khẩu không đúng, vui lòng thử lại"
+        }
+    return jsonify(msg)
+@app.route('/api/change_avatar/<user_id>', methods = ["POST"])
+def change_avt(user_id):
+   file = request.files.get('newFile')
+   user = dao.load_user(user_id)
+   if file:
+        image = cloudinary.uploader.upload(file)
+        path = image['secure_url']
+        oldPath = user.image.split("/")
+        public_key = oldPath[-1][:-4]
+        user.image = path
+        cloudinary.uploader.destroy(public_key)
+        db.session.commit()
+   return redirect(f'/user/{user_id}')
+
 if __name__ == "__main__":
+    from Project.admin import *
     app.run()

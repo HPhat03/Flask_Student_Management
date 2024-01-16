@@ -8,8 +8,9 @@
     padding: 10%;
     color: white;
 }
-#name_box>div{
+#name_box>div:first-child {
     display: flex;
+    width: 70%
 }
 #name_box>div>div{
     display:flex;

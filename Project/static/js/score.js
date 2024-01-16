@@ -206,7 +206,7 @@ function load(teacher_id, reset, part) {
 }
 
 function validate(){
-    semester_id = document.getElementById("semester").value
+    if(confirm("Xác nhận chỉnh sửa điềm")){semester_id = document.getElementById("semester").value
 
     if (teaching_plan_id == null){
         alert("Vui lòng chọn lớp")
@@ -241,21 +241,24 @@ function validate(){
         stuList.push(temp)
     }
     console.log(stuList)
+    class_id = document.getElementById("class").value
     fetch("/api/score_validate", {
         method: "POST",
         body: JSON.stringify({
             'plan_id': teaching_plan_id,
             'semester_id': semester_id,
-            'students': stuList
+            'students': stuList,
+            'class_id': class_id
         }),
         headers: {
             "Content-Type": "application/json"
         }
     }).then(res => res.json()).then(function(data){
         console.log(data)
+        alert(data['message'])
     })
 
-
+}
 }
 //function checkScore() {
 //    score_15_1_in = document.getElementById("15min-1").value

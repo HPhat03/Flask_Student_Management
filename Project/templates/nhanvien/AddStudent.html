@@ -5,10 +5,10 @@
     <form action="/api/user_pending" method="POST" enctype="multipart/form-data" style="display: flex; justify-content: center; width= 20%; margin: 100px; border: 2px solid black; padding: 20px">
            <div>{{form.csrf_token}}
                 <p>{{form.hidden_tag()}}</p>
-                <p>{{form.name.label}} <br> {{form.name}}</p>
-                <p>{{form.gender.label}} <br>{{form.gender}}</p>
-                <p>{{form.address.label}} <br>{{form.address}}</p>
-                <p>{{form.birthdate.label}} <br>{{form.birthdate}}</p>
+                <p>{{form.name.label}} <strong class="text-danger">*</strong> <br> {{form.name}}</p>
+                <p>{{form.gender.label}}  <strong class="text-danger">*</strong><br>{{form.gender}}</p>
+                <p>{{form.address.label}}  <strong class="text-danger">*</strong><br>{{form.address}}</p>
+                <p>{{form.birthdate.label}}  <strong class="text-danger">*</strong><br>{{form.birthdate}}</p>
                 <p>{{form.image.label}} <br>{{form.image}}</p>
            </div>
             <div>
