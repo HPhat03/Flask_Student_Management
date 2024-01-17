@@ -50,7 +50,7 @@
                  <p><strong>Ngày tạo: </strong> {% if myClass.created_date %}{{myClass.created_date}}{% else %} Không có ngày tạo {% endif %}</p>
                 <div style="display:flex; justify-content: space-between">
                     <div><strong>Trạng thái: </strong> {% if myClass.active %}<div class="badge bg-success">hoạt động</div>{% else %} <div class="badge bg-danger">dừng hoạt động</div> {% endif %}</div>
-                    {% if isEditable %}{% if myClass.active %}<button class="btn btn-danger" onclick="toggleLockClass({{myClass.id}})">Khóa lớp học</button>{% else %} <div class="btn btn-success" onclick="toggleLockClass({{myClass.id}})">Mở khóa lớp học</div> {% endif %}{% endif %}
+                    {% if session.get('role')=='NHANVIEN' %}{% if myClass.active %}<button class="btn btn-danger" onclick="toggleLockClass({{myClass.id}})">Khóa lớp học</button>{% else %} <div class="btn btn-success" onclick="toggleLockClass({{myClass.id}})">Mở khóa lớp học</div> {% endif %}{% endif %}
                 </div>
                 <br>
                 <p><strong>Số học sinh: </strong> {{student_count}} </p>
@@ -148,7 +148,7 @@
                                     {% if isEditable: %}
                                         <button class="btn btn-danger" onclick="delete_student({{myClass.id}}, {{s.student_id}})">Xóa</button>
                                         {% else %}
-                                        <div style="width: 10%">Kì {{s.student_detail.created_date}}</div>
+                                        <div style="width: 10%">{{s.student_detail.student_info.created_date}}</div>
                                     {% endif%}
                                     {% if s.student_detail.active: %}
                                         <div class="badge bg-success">active</div>

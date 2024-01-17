@@ -52,7 +52,11 @@ def load_students_count(id_class = None):
 def load_non_class_students(grade, kw = None, year = None):
 
     grade = Grade[grade]
-    year = get_latest_semester().year if year == None else year
+    if year == None:
+        year = get_latest_semester().year
+        pre = get_previous_semester().year
+        if year == pre:
+            return None
     class_students = (db.session.query(Student.user_id)
                 .join(Students_Classes)
                 .join(Class)
@@ -87,9 +91,9 @@ def load_years_of_semester():
     return db.session.query(Semester.year).distinct().all()
 
 def load_classes_all(grade = None, kw = None, page = None, year = None):
-    classes = Class.query
+    classes = Class.query.order_by(Class.year.desc())
     if grade:
-        classes = classes.filter(Student.grade.__eq__(Grade[grade]))
+        classes = classes.filter(Class.grade.__eq__(Grade[grade]))
     if kw:
         classes = classes.filter(Class.name.icontains(kw))
     if year:
@@ -110,7 +114,7 @@ def load_classes_count(year = None):
 
 
 def get_the_latest_class_of_student(student_id):
-    year = load_user(student_id).student[0].semester.year
+    year = get_previous_semester().year
     return (db.session.query(Class)
             .join(Students_Classes)
             .filter(Students_Classes.student_id.__eq__(student_id), Class.year.__eq__(year))
@@ -151,8 +155,10 @@ def load_subject_all(grade = None, non_plan = False, class_id=None):
         subjects = subjects.filter(Subject.id.not_in(alr_subjects))
     return subjects.all()
 
-def load_teaching_plan(teacher_id, class_id = None, subject_id = None):
-    myPlan = TeachingPlan.query.filter(TeachingPlan.teacher_id.__eq__(teacher_id))
+def load_teaching_plan(teacher_id = None, class_id = None, subject_id = None):
+    myPlan = TeachingPlan.query
+    if teacher_id:
+        myPlan = myPlan.filter(TeachingPlan.teacher_id.__eq__(teacher_id))
     if class_id:
         myPlan = myPlan.filter(TeachingPlan.class_id.__eq__(class_id))
 
@@ -177,7 +183,6 @@ def subject_report(subject_id=None, semester_id = None):
             plans = db.session.query(TeachingPlan).join(Class).filter(TeachingPlan.subject_id.__eq__(subject_id), Class.year.__eq__(score_semester.year)).all()
             if len(plans) == 0:
                 return data
-            print(plans)
             avg_final_results = []
             number_students = []
             students_passed = []
@@ -186,7 +191,6 @@ def subject_report(subject_id=None, semester_id = None):
 
                 students_query = db.session.query(Student).join(Score).filter(
                     Score.plan_id.__eq__(plan.id)).all()
-                print(students_query)
                 if students_query == []:
                     return data
                 total = len(students_query)

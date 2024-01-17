@@ -24,7 +24,7 @@
     </div>
 
     <div>
-        <select name="class" id="class" class="form-select" onchange="load({{ current_user.id }}, false, true)">
+        <select name="class" id="class" class="form-select" onchange="load({{ current_user.id }}, false, true)" onclick="resetSubject()">
             <option selected value="">--- LỚP HỌC ---</option>
         </select>
     </div>

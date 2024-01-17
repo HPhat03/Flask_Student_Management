@@ -2,7 +2,7 @@ import hashlib
 import math
 
 from Project.models import User, UserRole, Employee, Admin, UserRoles, Student, UserContact, LoaiTTLL, \
-    ChangedNotification, Grade, Students_Classes, ScoreDetails, Score, ScoreType
+    ChangedNotification, Grade, Students_Classes, ScoreDetails, Score, ScoreType, TeachingPlan
 from flask import session
 from Project import db, dao, app
 from flask_login import current_user
@@ -16,7 +16,6 @@ def check_user(username, password, type):
         roles = UserRoles.query.filter(UserRoles.user_id.__eq__(user.id)).all()
         for r in roles:
             if UserRole[type] == r.role:
-                print('True')
                 session['role'] = type
                 return user
 
@@ -177,3 +176,14 @@ def remove_accents(input_str):
 		else:
 			s += c
 	return s
+
+def add_default_teaching_plan(myClass):
+    subjects = dao.load_subject_all(myClass.grade)
+    for s in subjects:
+        default_teacher = dao.load_teachers_of_subject(s.id)[0]
+        teaching_plan = dao.load_teaching_plan(subject_id = s.id, class_id = myClass.id)
+        if teaching_plan == []:
+            temp = TeachingPlan(teacher_id = default_teacher.user_id, subject_id = s.id, class_id = myClass.id)
+            db.session.add(temp)
+            db.session.commit()
+

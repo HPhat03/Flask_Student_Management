@@ -1,4 +1,4 @@
-import hashlib
+
 import math
 from datetime import date
 
@@ -6,7 +6,6 @@ import cloudinary.uploader
 from flask import render_template, redirect, url_for, request, session, jsonify
 from flask_login import  current_user, login_user, login_required, logout_user
 from Project import app, login, dao, utils, db
-from Project.models import UserRole, Grade, Class, Students_Classes, TeachingPlan, ScoreType, Score, ScoreDetails
 from Project.forms import LoginForm, AddUserForm
 from Project.decorator import role_only
 
@@ -16,7 +15,6 @@ def user_load(user_id):
 
 @app.route("/")
 def index():
-
     if current_user.is_authenticated:
         if session.get('role') == 'ADMIN':
             return redirect('/admin')
@@ -89,7 +87,7 @@ def add_student():
 @role_only('NHANVIEN')
 def urgrade_students():
     previous_semester = dao.get_previous_semester()
-    students = dao.load_students_all(semester="211")
+    students = dao.load_students_all(semester=previous_semester.id)
     curSemester = dao.get_latest_semester()
     stuList = []
     for s in students:
@@ -120,6 +118,7 @@ def add_classes():
         class_size = dao.load_principles_name('CLASS_MAX').data
         amount = request.form.get('amount')
         students = dao.load_non_class_students(grade)
+
         year = dao.get_latest_semester().year
         try:
             if Grade[grade] == Grade.K10:
@@ -137,13 +136,16 @@ def add_classes():
                                           grade = Grade[grade], year = year)
                         db.session.add(tempClass)
                         db.session.commit()
+                        utils.add_default_teaching_plan(tempClass)
                         classes.append(tempClass)
                     utils.commit_changes(f"tạo {class_amount} lớp")
                     utils.add_students_to_classes(students=students, classes=classes, max=class_size)
             else:
                 for s in students:
-                    old_class = dao.get_the_latest_class_of_student(s[0].id).name
-                    index_class = old_class[-2:]
+                    old_class = dao.get_the_latest_class_of_student(s.user_id)
+                    if old_class is None:
+                        continue
+                    index_class = old_class.name[-2:]
                     name = str(Grade[grade].value)
                     match Grade[grade]:
                         case Grade.K11:
@@ -152,8 +154,10 @@ def add_classes():
                             name += "C"
                     name += index_class
                     now_class = dao.load_class(name=name)
+                    old_class.active = False
+                    db.session.commit()
                     if now_class:
-                        temp = Students_Classes(class_id = now_class.id, student_id = s[0].id)
+                        temp = Students_Classes(class_id = now_class.id, student_id = s.user_id)
                         db.session.add(temp)
                         db.session.commit()
                     else:
@@ -161,7 +165,8 @@ def add_classes():
                         db.session.add(tempClass)
                         db.session.commit()
                         utils.commit_changes("tạo 1 lớp")
-                        temp = Students_Classes(class_id = tempClass.id, student_id = s[0].id)
+                        utils.add_default_teaching_plan(tempClass)
+                        temp = Students_Classes(class_id = tempClass.id, student_id = s.user_id)
                         db.session.add(temp)
                         db.session.commit()
         except Exception as exc:
@@ -203,7 +208,7 @@ def info(user_id):
 @login_required
 def class_info(class_id):
     myClass = dao.load_class(class_id)
-    isEditable = UserRole[session.get('role')] == UserRole.NHANVIEN
+    isEditable = (UserRole[session.get('role')] == UserRole.NHANVIEN and myClass.active)
     teachers = dao.load_non_homeroom_teacher(myClass.year)
     subjects = dao.load_subject_all(myClass.grade, non_plan=True, class_id=myClass.id)
     content = f'{dao.load_students_count(myClass.id)}/{myClass.amount}'
@@ -529,7 +534,6 @@ def input_score():
 @role_only('GIAOVIEN')
 def output_score():
     semesters = dao.load_years_of_semester()
-    print(semesters)
     classes = dao.load_classes_all()
     teachers_subjects = dao.load_teachers_subjects()
     return render_template('/giaovien/outputScore.html', semesters=semesters,
@@ -610,13 +614,11 @@ def get_info(teacher_id):
         }
         msg["teaching_plan"] = temp
     else:
-        print(data)
         myClass = dao.load_class(id=myClass)
         semester = dao.get_semester(semester)
         teaching_plan = dao.load_teaching_plan(teacher_id,myClass.id,subject)[0]
         subject = teaching_plan.subject_detail
         len_required = subject.mins15 + subject.mins45 + subject.final
-        print(subject, len_required)
         stuList = []
         for s in myClass.students:
             student = {
@@ -743,6 +745,49 @@ def change_avt(user_id):
         db.session.commit()
    return redirect(f'/user/{user_id}')
 
+@app.route('/api/upgrade_students/', methods = ["PUT"])
+def upgrade():
+    preSemester = dao.get_previous_semester()
+    students = dao.load_students_all(semester=preSemester.id)
+    curSemester = dao.get_latest_semester()
+    msg = {
+        "status": "success",
+        "message": "Thành Công"
+    }
+    failed = {
+        "status": "failed",
+        "message": "Lên lớp thành công"
+    }
+    for s in students:
+        overall = utils.overall_score(s.user_id, preSemester.year)
+        if (s.grade != Grade.K12) or (s.grade == Grade.K12 and overall<3.5):
+            try:
+                s.semester_id = curSemester.id
+                db.session.commit()
+            except Exception as exc:
+                msg = failed
+                msg["message"] = str(exc)
+                return jsonify(msg)
+            if curSemester.semester == 1:
+                if overall > 3.5:
+                    try:
+                        match s.grade:
+                            case Grade.K10:
+                                s.grade = Grade.K11
+                            case Grade.K11:
+                                s.grade = Grade.K12
+                        db.session.commit()
+                    except Exception as exc:
+                        msg = failed
+                        msg["message"] = str(exc)
+                        return jsonify(msg)
+    return jsonify(msg)
+
+@app.route('/test/')
+def test():
+    myClass = dao.load_class(id=10)
+    utils.add_default_teaching_plan(myClass)
+    return "hello"
 if __name__ == "__main__":
     from Project.admin import *
     app.run()

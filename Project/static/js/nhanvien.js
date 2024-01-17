@@ -1,4 +1,4 @@
-
+//student_management function
 function delete_from_list(id, obj){
     if (confirm("Bạn chắc chắn muốn xóa") == true){
         obj.disabled = true;
@@ -49,7 +49,7 @@ function validate_all(obj){
         })
     }
 }
-
+//add class function
 function get_non_class_user_by_grade(){
 grade = document.getElementById('grade').value
 console.log(grade)
@@ -283,6 +283,17 @@ function add_to_class(class_id){
         }).then(res => res.json()).then(function(data){
             alert(data['message'])
             location.reload()
+        })
+    }
+}
+//UPGRADE STUDENTS FUNCTION
+function upgrade(){
+    if (confirm("Xác nhận lên lớp cho tất cả học sinh?")){
+        fetch("/api/upgrade_students/", {
+            method: "PUT",
+        }).then(res => res.json()).then(function(data) {
+            console.log(data)
+            alert(data["message"])
         })
     }
 }

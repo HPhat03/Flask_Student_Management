@@ -39,6 +39,10 @@ function init(){
     list_student_id = []
     mins15, mins45, final = 0, 0, 0
 }
+function resetSubject(){
+    document.getElementById("subject").innerHTML = "<option selected value=''>--- MÔN HỌC ---</option>"
+    init()
+}
 function load(teacher_id, reset, part) {
     if (reset) {
         document.getElementById("class").innerHTML = "<option selected value=''>--- LỚP HỌC ---</option>"
@@ -51,8 +55,7 @@ function load(teacher_id, reset, part) {
     myClass = document.getElementById("class").value
     subject = document.getElementById("subject").value
    if (myClass == "") {
-        document.getElementById("subject").innerHTML = "<option selected value=''>--- MÔN HỌC ---</option>"
-        init()
+        resetSubject()
    }
     type = part ? "input" : "output"
     if (semester != "" && grade != "" ) {

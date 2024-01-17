@@ -51,7 +51,13 @@ class ManageSubjectView(AuthenticatedAdmin):
         'final': 'Số cột cuối kỳ'
     }
 
-
+class EditSemesterView(AuthenticatedAdmin):
+    column_list = ['id', 'semester', 'year']
+    column_labels = {
+        'id': 'Mã học kỳ',
+        'semester': 'Học kỳ',
+        'year': 'Năm học'
+    }
 class MyStatsView(AuthenticatedUser):
     @expose("/")
     def index(self):
@@ -81,5 +87,7 @@ class MyLogoutView(AuthenticatedUser):
 
 admin.add_view(EditPrincipleView(Principle, db.session, name="Chỉnh sửa quy định"))
 admin.add_view(ManageSubjectView(Subject, db.session, name="Quản lý môn học"))
+admin.add_view(EditSemesterView(Semester, db.session, name="Danh sách học kì"))
 admin.add_view(MyStatsView(name='Thống kê báo cáo'))
 admin.add_view(MyLogoutView(name='Đăng xuất'))
+
